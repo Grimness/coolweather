@@ -1,6 +1,7 @@
 package android.coolweather.com.coolweather;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.coolweather.com.coolweather.db.City;
 import android.coolweather.com.coolweather.db.County;
 import android.coolweather.com.coolweather.db.Province;
@@ -12,6 +13,7 @@ import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
@@ -103,20 +105,32 @@ public class ChooseAreaFragment extends Fragment {
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        listView.setOnItemClickListener((parent, view, position, id) -> {
-            if (currentLevel == LEVEL_PROVINCE) {
-                selectedProvince = provinceList.get(position);
-                queryCities();
-            } else if (currentLevel == LEVEL_CITY) {
-                selectedCity = cityList.get(position);
-                queryCounties();
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                if (currentLevel == LEVEL_PROVINCE) {
+                    selectedProvince = provinceList.get(position);
+                    queryCities();
+                } else if (currentLevel == LEVEL_CITY) {
+                    selectedCity = cityList.get(position);
+                    queryCounties();
+                } else if (currentLevel == LEVEL_COUNTY) {
+                    String weatherId = countyList.get(position).getWeatherId();
+                    Intent intent = new Intent(getActivity(), WeatherActivity.class);
+                    intent.putExtra("weather_id", weatherId);
+                    startActivity(intent);
+                    getActivity().finish();
+                }
             }
         });
-        backButton.setOnClickListener((v) -> {
-            if (currentLevel == LEVEL_COUNTY) {
-                queryCities();
-            } else if (currentLevel == LEVEL_CITY) {
-                queryProvinces();
+        backButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (currentLevel == LEVEL_COUNTY) {
+                    queryCities();
+                } else if (currentLevel == LEVEL_CITY) {
+                    queryProvinces();
+                }
             }
         });
         queryProvinces();
@@ -193,16 +207,19 @@ public class ChooseAreaFragment extends Fragment {
      * @param address 请求地址
      * @param type 地区类型
      */
-    private void queryFromServer(String address, String type) {
+    private void queryFromServer(String address, final String type) {
         showProgressDialog();
         HttpUtil.sendOkHttpRequest(address, new Callback() {
 
             @Override
             public void onFailure(Call call, IOException e) {
                 // 通过 runOnThread() 方法回到主线程处理逻辑
-                getActivity().runOnUiThread(() -> {
-                    closeProgressDialog();
-                    Toast.makeText(getContext(), "加载失败", Toast.LENGTH_SHORT).show();
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        closeProgressDialog();
+                        Toast.makeText(getContext(), "加载失败", Toast.LENGTH_SHORT).show();
+                    }
                 });
             }
 
@@ -219,14 +236,17 @@ public class ChooseAreaFragment extends Fragment {
                 }
                 if (result) {
                     // 切回主线程
-                    getActivity().runOnUiThread(() ->{
-                        closeProgressDialog();
-                        if ("province".equals(type)) {
-                            queryProvinces();
-                        } else if ("city".equals(type)) {
-                            queryCities();
-                        } else if ("county".equals(type)) {
-                            queryCounties();
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            closeProgressDialog();
+                            if ("province".equals(type)) {
+                                queryProvinces();
+                            } else if ("city".equals(type)) {
+                                queryCities();
+                            } else if ("county".equals(type)) {
+                                queryCounties();
+                            }
                         }
                     });
                 }
